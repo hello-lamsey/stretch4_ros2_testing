@@ -1,20 +1,13 @@
 from ament_index_python.packages import get_package_share_path
 
-from launch_ros.actions import Node
-
 from launch import LaunchDescription
 from launch.actions import (
-    DeclareLaunchArgument,
-    ExecuteProcess,
     IncludeLaunchDescription,
 )
 from launch.launch_description_sources import (
-    FrontendLaunchDescriptionSource,
     PythonLaunchDescriptionSource,
 )
 from launch.substitutions import (
-    FindExecutable,
-    LaunchConfiguration,
     PathJoinSubstitution,
 )
 
@@ -37,13 +30,5 @@ def generate_launch_description() -> LaunchDescription:
         }.items(),
     )
     ld.add_action(stretch_driver_launch)
-
-    # testing node
-    move_joints_node = Node(
-        package="stretch4_ros2_testing",
-        executable="move_joints",
-        name="move_joints",
-    )
-    ld.add_action(move_joints_node)
 
     return ld

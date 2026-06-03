@@ -28,6 +28,7 @@ setup(
     entry_points={
         'console_scripts': [
             "move_joints = stretch4_ros2_testing.move_joints:main",
+            "move_to_pose = stretch4_ros2_testing.move_to_pose:main",
         ],
     },
 )
