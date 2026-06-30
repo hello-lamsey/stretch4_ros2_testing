@@ -218,37 +218,39 @@ class FlyingGripper(Node):
         velocities using differential IK and publishing them at the target control rate.
         """
         self._switch_mode("velocity")
+        v = 0.1
         task_space_velocities = np.array(
             [
-                [0.1, 0., 0., 0., 0., 0.],
-                [0., 0.1, 0., 0., 0., 0.],
-                [0., 0., 0.1, 0., 0., 0.],
+                [v, 0., 0., 0., 0., 0.],
+                [0., v, 0., 0., 0., 0.],
+                [0., 0., v, 0., 0., 0.],
             ]
         )
-        move_time = 2.0
+        move_time = 3.0
         hz = 10.
         dt_step = 1.0 / hz
-        num_steps = int(move_time * hz)
         
         for v_task in task_space_velocities:
             print(f"Target Velocity: {v_task}")
-            for _ in range(num_steps):
+            start_time = time.time()
+            while rclpy.ok() and time.time() - start_time < move_time:
+                top = time.time()
                 q_dot = self.kinematic_model.differential_ik(
                     q=self.stretch_joint_position,
                     target_frame="tool_attachment_site_link",
                     v_desired=v_task
                 )
-                print(f"Joint Velocities: {q_dot.to_numpy()}")
+                # print(f"Joint Velocities: {q_dot.to_numpy()}")
                 joint_jog, base_twist = self._velocity_command_to_ros2(q_dot, dt_step)
                 self.pub_joint_vel.publish(joint_jog)
                 self.pub_base_twist.publish(base_twist)
-                time.sleep(dt_step)
+                time.sleep(max(dt_step - (time.time() - top), 0))
 
         zero_vel = StretchJointVelocities()
-        stop_joint_jog, stop_base_twist = self._velocity_command_to_ros2(zero_vel, move_time)
+        stop_joint_jog, stop_base_twist = self._velocity_command_to_ros2(zero_vel, 0.1)
         self.pub_joint_vel.publish(stop_joint_jog)
         self.pub_base_twist.publish(stop_base_twist)
-        time.sleep(move_time)
+        time.sleep(0.1)
 
 def main(args: list[str] | None = None) -> None:
     """
