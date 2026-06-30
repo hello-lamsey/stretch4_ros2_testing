@@ -210,15 +210,20 @@ class FlyingGripper(Node):
 
         return joint_jog, base_twist
 
-    def main(self) -> None:
+    def test_primitive_motions(
+        self,
+        v: float=0.1,
+        move_time: float=3.0,
+        hz: float=10.
+    ):
         """
-        Execute the main control loop to command the robot through a sequence of task-space velocities.
-
-        Iterates through the target task-space velocities, computing the joint
-        velocities using differential IK and publishing them at the target control rate.
+        Test primitive motions of the robot.
+        
+        Args:
+            v: The velocity to use for the primitive motions.
+            move_time: The time to move for each primitive motion.
+            hz: The frequency of the control loop.
         """
-        self._switch_mode("velocity")
-        v = 0.1
         task_space_velocities = np.array(
             [
                 [v, 0., 0., 0., 0., 0.],
@@ -226,8 +231,6 @@ class FlyingGripper(Node):
                 [0., 0., v, 0., 0., 0.],
             ]
         )
-        move_time = 3.0
-        hz = 10.
         dt_step = 1.0 / hz
         
         for v_task in task_space_velocities:
@@ -251,6 +254,128 @@ class FlyingGripper(Node):
         self.pub_joint_vel.publish(stop_joint_jog)
         self.pub_base_twist.publish(stop_base_twist)
         time.sleep(0.1)
+
+    def _compute_circle_basis(self, normal: np.ndarray) -> tuple[np.ndarray, np.ndarray] | None:
+        """
+        Compute orthonormal vectors u (up) and v (tangent) spanning the circle plane.
+        """
+        normal = np.array(normal, dtype=float)
+        normal_norm = np.linalg.norm(normal)
+        if normal_norm < 1e-6:
+            self.get_logger().error("Normal vector cannot be a zero vector.")
+            return None
+        n_hat = normal / normal_norm
+
+        # Project global Z onto the plane to find the local "up" direction
+        global_z = np.array([0.0, 0.0, 1.0])
+        dot_z = np.dot(n_hat, global_z)
+
+        # If the plane is horizontal (normal is vertical), default the "up" direction to global X
+        if np.abs(dot_z) > 0.99:
+            global_x = np.array([1.0, 0.0, 0.0])
+            u = global_x - np.dot(n_hat, global_x) * n_hat
+        else:
+            u = global_z - dot_z * n_hat
+        
+        u = u / np.linalg.norm(u)
+        v = np.cross(n_hat, u)
+        v = v / np.linalg.norm(v)
+
+        return u, v
+
+    def _compute_circular_velocity(
+        self,
+        radius: float,
+        omega: float,
+        elapsed: float,
+        u: np.ndarray,
+        v: np.ndarray
+    ) -> np.ndarray:
+        """
+        Compute target circular velocity in the world/base frame.
+        """
+        return -radius * omega * np.sin(omega * elapsed) * u + radius * omega * np.cos(omega * elapsed) * v
+
+    def test_circle_motion(
+        self,
+        radius: float,
+        time_to_complete: float,
+        normal: np.ndarray,
+        hz: float = 10.0
+    ) -> None:
+        """
+        Execute feedforward circular motion of the end-effector.
+        Args:
+            radius: Radius of the circle in meters.
+            time_to_complete: Duration in seconds to complete one full circle.
+            normal: A 3-element numpy array representing the normal vector to the circle's plane.
+            hz: The frequency of the control loop.
+        """
+        basis = self._compute_circle_basis(normal)
+        if basis is None:
+            return
+        u, v = basis
+
+        omega = 2.0 * np.pi / time_to_complete
+        dt_step = 1.0 / hz
+
+        self.get_logger().info(
+            f"Starting circular motion. Radius: {radius}m, Time: {time_to_complete}s, "
+            f"Up Vector: {u}, Tangent Vector: {v}"
+        )
+
+        start_time = time.time()
+        while rclpy.ok():
+            top = time.time()
+            elapsed = top - start_time
+            if elapsed >= time_to_complete:
+                break
+
+            # Compute target velocity in the world/base frame
+            v_world = self._compute_circular_velocity(radius, omega, elapsed, u, v)
+
+            # Solve joint velocities via differential IK
+            q_dot = self.kinematic_model.differential_ik(
+                q=self.stretch_joint_position,
+                target_frame="tool_attachment_site_link",
+                v_desired=v_world
+            )
+
+            # Command the robot
+            joint_jog, base_twist = self._velocity_command_to_ros2(q_dot, dt_step)
+            self.pub_joint_vel.publish(joint_jog)
+            self.pub_base_twist.publish(base_twist)
+
+            # Precise rate sleep
+            elapsed_loop = time.time() - top
+            time.sleep(max(dt_step - elapsed_loop, 0.0))
+
+        # Stop the robot when the circle is completed
+        zero_vel = StretchJointVelocities()
+        stop_joint_jog, stop_base_twist = self._velocity_command_to_ros2(zero_vel, 0.1)
+        self.pub_joint_vel.publish(stop_joint_jog)
+        self.pub_base_twist.publish(stop_base_twist)
+        self.get_logger().info("Circular motion test completed.")
+
+    def main(self) -> None:
+        """
+        Execute the main control loop to command the robot through a sequence of task-space velocities.
+
+        Iterates through the target task-space velocities, computing the joint
+        velocities using differential IK and publishing them at the target control rate.
+        """
+        self._switch_mode("velocity")
+        # v = 0.1
+        # dt = 3.0
+        # hz = 10.
+        # self.test_primitive_motions(v, dt, hz)
+
+        radius = 0.2
+        time_to_complete = 10.0
+        normal = np.array([0.0, 0.0, 1.0])
+        hz = 10.
+        self.test_circle_motion(radius, time_to_complete, normal, hz)
+        
 
 def main(args: list[str] | None = None) -> None:
     """
