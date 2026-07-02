@@ -27,9 +27,10 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            "flying_gripper = stretch4_ros2_testing.flying_gripper:main",
+            "mapping_trigger = stretch4_ros2_testing.mapping_trigger:main",
             "move_joints = stretch4_ros2_testing.move_joints:main",
             "move_to_pose = stretch4_ros2_testing.move_to_pose:main",
-            "flying_gripper = stretch4_ros2_testing.flying_gripper:main",
         ],
     },
 )
