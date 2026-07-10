@@ -31,6 +31,7 @@ setup(
             "mapping_trigger = stretch4_ros2_testing.mapping_trigger:main",
             "move_joints = stretch4_ros2_testing.move_joints:main",
             "move_to_pose = stretch4_ros2_testing.move_to_pose:main",
+            "test_omnibase_primitives = stretch4_ros2_testing.test_omnibase_primitives:main",
         ],
     },
 )
