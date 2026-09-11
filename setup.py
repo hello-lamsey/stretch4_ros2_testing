@@ -32,6 +32,8 @@ setup(
             "move_joints = stretch4_ros2_testing.move_joints:main",
             "move_to_pose = stretch4_ros2_testing.move_to_pose:main",
             "test_omnibase_primitives = stretch4_ros2_testing.test_omnibase_primitives:main",
+            "ee_velocity_safety_filter = stretch4_ros2_testing.ee_velocity_safety_filter:main",
+            "test_base_oscillator = stretch4_ros2_testing.test_base_oscillator:main",
         ],
     },
 )
