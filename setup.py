@@ -13,6 +13,7 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         (os.path.join('share', package_name, 'launch'), glob(os.path.join('launch', '*launch.[pxy][yma]*'))),
+        (os.path.join('share', package_name, 'config'), glob(os.path.join('config', '*'))),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -34,6 +35,7 @@ setup(
             "test_omnibase_primitives = stretch4_ros2_testing.test_omnibase_primitives:main",
             "ee_velocity_safety_filter = stretch4_ros2_testing.ee_velocity_safety_filter:main",
             "test_base_oscillator = stretch4_ros2_testing.test_base_oscillator:main",
+            "nullspace_base_obstacle_avoidance = stretch4_ros2_testing.nullspace_base_obstacle_avoidance:main",
         ],
     },
 )
